@@ -1,0 +1,58 @@
+name: build
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Tags
+        id: generate-tags
+        run: |
+          TAGS=()
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TAGS+=("pr-${{ github.event.number }}")
+          else
+            TAGS+=("$(date +%Y%m%d)")
+            TAGS+=("latest")
+          fi
+
+          echo "tags=${TAGS[*]}" >> $GITHUB_OUTPUT
+      
+      - name: Build Image
+        id: build_image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: Containerfile
+          tags: ${{ steps.generate-tags.outputs.tags }}
+
+      - name: Push Image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build_image.outputs.image }}
+          tags: ${{ steps.build_image.outputs.tags }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        
+
