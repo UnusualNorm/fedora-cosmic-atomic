@@ -44,6 +44,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           containerfiles: Containerfile
+          image: ${{ github.repository }}
           tags: ${{ steps.generate-tags.outputs.tags }}
 
       - name: Push Image
