@@ -1,0 +1,55 @@
+name: Build ISO
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-iso:
+    name: Build ISO
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Tag
+        id: generate-tag
+        run: |
+          TAG=""
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TAG="pr-${{ github.event.number }}"
+          else
+            TAG="latest"
+          fi
+
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Build ISO
+        uses: jasonn3/build-container-installer@v1.2.3
+        id: build
+        with:
+          arch: x86_64
+          image_name: ${{ github.event.repository.name  }}
+          image_repo: ghcr.io/${{ github.repository_owner }}
+          image_tag: ${{ env.IMAGE_TAG }}
+          version: 41
+          variant: "kinoite"
+          iso_name: ${{ github.event.repository.name  }}.iso
+          
+          secure_boot_key_url: "https://github.com/ublue-os/akmods/raw/main/certs/public_key.der"
+          enrollment_password: "universalblue"
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build.outputs.iso_name }}
+          path: |
+            ${{ steps.build.outputs.iso_path }}
+            ${{ steps.build.outputs.iso_path }}-CHECKSUM
